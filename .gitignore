@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Data (large / regenerable — don't commit raw datasets)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Env
+.env
+
+# Reference papers used for the literature review — kept locally for the
+# team's own use, not redistributed in the repo (copyright + repo bloat)
+docs/Capstone Cited Works/
