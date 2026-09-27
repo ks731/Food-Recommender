@@ -22,3 +22,6 @@ data/processed/*
 # Reference papers used for the literature review — kept locally for the
 # team's own use, not redistributed in the repo (copyright + repo bloat)
 docs/Capstone Cited Works/
+
+# Personal Claude Code context file — not shared with teammates via the repo
+CLAUDE.md
