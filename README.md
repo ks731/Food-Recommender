@@ -53,7 +53,8 @@ recommendations, and run the evaluation script.)
 - `docs/` — Abstract_and_Literature_Review.pdf (submitted abstract + literature review); reference papers used for research are kept locally in docs/Capstone Cited Works/ but are gitignored, not part of the repo. Project Proposal not yet added — pending; see status below.
 
 ## Team
-Kevin Sanchez, Kevin Munoz, Jose Acevedo — Hunter College CSCI 49900-03 Capstone, Fall 2026.
+Kevin Sanches, Kevin Munoz, Jose Acevedo — Hunter College CSCI 49900-03 Capstone, Fall 2026.
+(Add individual contributions here as they accumulate through the semester.)
 
 ## References
 - Sarker & Tanjim, "A Multinutrient Clustering Framework for Personalized

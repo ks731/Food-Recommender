@@ -12,7 +12,7 @@ Quick catch-up for the team. Add to this as things change — it's meant to stay
 ## Getting set up
 1. `git clone https://github.com/ks731/Food-Recommender.git`
 2. `cd Food-Recommender && pip install -r requirements.txt`
-3. Download the USDA SR Legacy dataset (FoodData Central) and put the CSVs in `data/raw/` — that folder is gitignored, so the data isn't in the repo and you'll each need your own copy. *(Kevin: drop the exact download link here)*
+3. Download the USDA SR Legacy dataset (FoodData Central) and put the CSVs in `data/raw/` — that folder is gitignored, so the data isn't in the repo and you'll each need your own copy. [USDA FoodData Central download page](https://fdc.nal.usda.gov/download-datasets) — grab the SR Legacy CSV download
 4. From the repo root, run `python3 src/preprocessing.py` — you should see a merged table print out. If it errors, it's probably a missing/misnamed file in `data/raw/`.
 
 ## What's next
