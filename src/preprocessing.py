@@ -13,6 +13,17 @@ def load_table(filepath):
     df = pd.read_csv(filepath)
     return df
 
+nutrients_csv = load_table(DATA_RAW / "nutrient.csv")
+print(nutrients_csv[nutrients_csv["name"].duplicated(keep=False)])
+
+
+def differentiate_nutrient_names(nutrient_df):
+    """Finds duplicate nutrient names with different units and renames those rows"""
+    bool_series = nutrient_df["name"].duplicated(keep=False)
+    nutrient_df.loc[bool_series, "name"] = nutrient_df["name"] + " (" + nutrient_df["unit_name"] + ")"
+    return nutrient_df
+
+nutrients_csv = differentiate_nutrient_names(nutrients_csv)
 
 def merge_nutrient_names(food_nutrient_df, nutrient_df):
     """Attach nutrient name and unit to each food_nutrient row"""
@@ -20,9 +31,7 @@ def merge_nutrient_names(food_nutrient_df, nutrient_df):
     return merged
 
 food_nutrient_csv = load_table(DATA_RAW / "food_nutrient.csv")
-nutrients_csv = load_table(DATA_RAW / "nutrient.csv")
 merged_nutrient_names = merge_nutrient_names(food_nutrient_csv, nutrients_csv)
-
 
 def merge_food_descriptions(merged_nutrient_names_df, food_df):
     """Match fdc_id for nutrient_df and food_df """
@@ -41,4 +50,3 @@ def cleaning_missing_values(df, threshold = 0.5):
     return clean_df
 
 wide_table = cleaning_missing_values(wide_table, threshold=0.5)
-
