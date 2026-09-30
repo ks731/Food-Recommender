@@ -41,8 +41,4 @@ def cleaning_missing_values(df, threshold = 0.5):
     return clean_df
 
 wide_table = cleaning_missing_values(wide_table, threshold=0.5)
-print(wide_table.nunique())
-
-
-
 
