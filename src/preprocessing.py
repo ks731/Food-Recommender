@@ -33,4 +33,16 @@ food_csv = load_table(DATA_RAW / "food.csv")
 merged_food_descriptions = merge_food_descriptions(merged_nutrient_names, food_csv)
 
 wide_table = merged_food_descriptions.pivot_table(index = "fdc_id", columns = "name", values = "amount").reset_index()
-print(wide_table.head())
+
+def cleaning_missing_values(df, threshold = 0.5):
+    """Returns dataframe with only columns 50% or more filled and fills missing values with 0"""
+    clean_df = df.loc[:, df.isna().mean() <= threshold]
+    clean_df = clean_df.fillna(0)
+    return clean_df
+
+wide_table = cleaning_missing_values(wide_table, threshold=0.5)
+print(wide_table.nunique())
+
+
+
+
