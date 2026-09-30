@@ -14,8 +14,6 @@ def load_table(filepath):
     return df
 
 nutrients_csv = load_table(DATA_RAW / "nutrient.csv")
-print(nutrients_csv[nutrients_csv["name"].duplicated(keep=False)])
-
 
 def differentiate_nutrient_names(nutrient_df):
     """Finds duplicate nutrient names with different units and renames those rows"""
@@ -41,7 +39,13 @@ def merge_food_descriptions(merged_nutrient_names_df, food_df):
 food_csv = load_table(DATA_RAW / "food.csv")
 merged_food_descriptions = merge_food_descriptions(merged_nutrient_names, food_csv)
 
-wide_table = merged_food_descriptions.pivot_table(index = "fdc_id", columns = "name", values = "amount").reset_index()
+def pivot_to_wide(merged_food_desc_df):
+    """Takes dataframe and tranforms it into a wide table and resets its index """
+    tablepivoted = merged_food_desc_df.pivot_table(index="fdc_id", columns = "name",
+                                                     values = "amount")
+    widetable = tablepivoted.reset_index()
+    return widetable
+wide_table = pivot_to_wide(merged_food_descriptions)
 
 def cleaning_missing_values(df, threshold = 0.5):
     """Returns dataframe with only columns 50% or more filled and fills missing values with 0"""
