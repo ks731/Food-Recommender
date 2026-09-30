@@ -23,13 +23,14 @@ food_nutrient_csv = load_table(DATA_RAW / "food_nutrient.csv")
 nutrients_csv = load_table(DATA_RAW / "nutrient.csv")
 merged_nutrient_names = merge_nutrient_names(food_nutrient_csv, nutrients_csv)
 
-print(merged_nutrient_names.head())
 
 def merge_food_descriptions(merged_nutrient_names_df, food_df):
-    """Match fdc_id for nurtrient_df and food_df """
+    """Match fdc_id for nutrient_df and food_df """
     merged = pd.merge(merged_nutrient_names_df, food_df, on="fdc_id",how="left")
     return merged
 
 food_csv = load_table(DATA_RAW / "food.csv")
 merged_food_descriptions = merge_food_descriptions(merged_nutrient_names, food_csv)
-print(merged_food_descriptions.head())
+
+wide_table = merged_food_descriptions.pivot_table(index = "fdc_id", columns = "name", values = "amount").reset_index()
+print(wide_table.head())
