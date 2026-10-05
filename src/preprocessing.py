@@ -43,8 +43,7 @@ def pivot_to_wide(merged_food_desc_df):
     """Takes dataframe and tranforms it into a wide table"""
     tablepivoted = merged_food_desc_df.pivot_table(index="fdc_id", columns = "name",
                                                      values = "amount")
-    widetable = tablepivoted
-    return widetable
+    return tablepivoted
 wide_table = pivot_to_wide(merged_food_descriptions)
 
 def cleaning_missing_values(df, threshold = 0.5):
