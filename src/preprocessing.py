@@ -40,10 +40,10 @@ food_csv = load_table(DATA_RAW / "food.csv")
 merged_food_descriptions = merge_food_descriptions(merged_nutrient_names, food_csv)
 
 def pivot_to_wide(merged_food_desc_df):
-    """Takes dataframe and tranforms it into a wide table and resets its index """
+    """Takes dataframe and tranforms it into a wide table"""
     tablepivoted = merged_food_desc_df.pivot_table(index="fdc_id", columns = "name",
                                                      values = "amount")
-    widetable = tablepivoted.reset_index()
+    widetable = tablepivoted
     return widetable
 wide_table = pivot_to_wide(merged_food_descriptions)
 
