@@ -1,5 +1,6 @@
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
 from preprocessing import wide_table
 
 CLUSTER_FEATURES = [
@@ -27,4 +28,13 @@ def scale_features(df):
 
 scaled_wide_table = scale_features(selected_wide_table)
 
-print(scaled_wide_table.head())
+def cluster_foods(df, n_clusters):
+    """Runs K-means on scaled table and returns a series of cluster labels"""
+    km = KMeans(n_clusters, random_state=42, n_init=10)
+    labels = km.fit_predict(df)
+    result = pd.Series(labels,index=df.index,name="cluster")
+    return result
+
+clustered_scaled = cluster_foods(scaled_wide_table,n_clusters=8)
+print(clustered_scaled.head())
+
