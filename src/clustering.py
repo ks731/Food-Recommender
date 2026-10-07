@@ -1,6 +1,7 @@
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
 from preprocessing import wide_table
 
 CLUSTER_FEATURES = [
@@ -43,4 +44,10 @@ def profile_clusters(df,labels):
     return profile.round(1)
 
 cluster_profile = profile_clusters(selected_wide_table, clustered_scaled)
-print(cluster_profile.T)
+
+def evaluate_clusters(df, labels):
+    """Returns silhouette score"""
+    score = silhouette_score(df,labels)
+    return score
+
+sil_score = evaluate_clusters(scaled_wide_table,clustered_scaled)
