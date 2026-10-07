@@ -36,5 +36,11 @@ def cluster_foods(df, n_clusters):
     return result
 
 clustered_scaled = cluster_foods(scaled_wide_table,n_clusters=8)
-print(clustered_scaled.head())
 
+def profile_clusters(df,labels):
+    """Returns the average of each nutrient per cluster"""
+    profile = df.groupby(labels).mean()
+    return profile.round(1)
+
+cluster_profile = profile_clusters(selected_wide_table, clustered_scaled)
+print(cluster_profile.T)
