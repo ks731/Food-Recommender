@@ -64,10 +64,3 @@ save_table(selected_wide_table, "nutrients_selected.csv")
 save_table(scaled_wide_table, "nutrients_scaled.csv")
 save_table(clustered_scaled, "cluster_labels.csv")
 
-#Check:
-back = pd.read_csv(DATA_PROCESSED / "nutrients_selected.csv", index_col="fdc_id")
-print(back.shape)
-back2 = pd.read_csv(DATA_PROCESSED / "nutrients_scaled.csv",index_col="fdc_id")
-print(back2.shape)
-back3 = pd.read_csv(DATA_PROCESSED / "cluster_labels.csv",index_col="fdc_id")
-print(back3.shape)
