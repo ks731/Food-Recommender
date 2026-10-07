@@ -1,9 +1,13 @@
 import pandas as pd
+from pathlib import Path
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from preprocessing import wide_table
 
+here = Path(__file__).resolve()
+PROJECT_ROOT = here.parent.parent
+DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
 CLUSTER_FEATURES = [
     "Protein", "Total lipid (fat)", "Carbohydrate, by difference", "Fiber, total dietary", "Sugars, Total",
     "Energy (KCAL)",
@@ -51,3 +55,19 @@ def evaluate_clusters(df, labels):
     return score
 
 sil_score = evaluate_clusters(scaled_wide_table,clustered_scaled)
+
+def save_table(df,filename):
+    """Writes table into a file and sets fdc_id as index"""
+    df.to_csv(DATA_PROCESSED / filename)
+
+save_table(selected_wide_table, "nutrients_selected.csv")
+save_table(scaled_wide_table, "nutrients_scaled.csv")
+save_table(clustered_scaled, "cluster_labels.csv")
+
+#Check:
+back = pd.read_csv(DATA_PROCESSED / "nutrients_selected.csv", index_col="fdc_id")
+print(back.shape)
+back2 = pd.read_csv(DATA_PROCESSED / "nutrients_scaled.csv",index_col="fdc_id")
+print(back2.shape)
+back3 = pd.read_csv(DATA_PROCESSED / "cluster_labels.csv",index_col="fdc_id")
+print(back3.shape)
