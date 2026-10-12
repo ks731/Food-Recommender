@@ -21,5 +21,11 @@ def build_profile(df,targets):
         profile[nutrient] = df[nutrient].quantile(pct)
     return profile
 
-print(build_profile(scaled_table, HIGH_PROTEIN))
+def build_weights(df,targets):
+    """Builds wieghts for profile"""
+    weights = pd.Series(1.0,index=df.columns)
+    nutrients = list(targets)
+    weights[nutrients] = 3.0
+    return weights
+print(build_weights(scaled_table, HIGH_PROTEIN).sum())
 
