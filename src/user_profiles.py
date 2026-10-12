@@ -27,7 +27,7 @@ def build_weights(df,targets):
     return weights
 
 def make_profile(df, targets, sodium_limit):
-    """Returns profile with target vector,weights, and extra limit"""
+    """Returns profile with target vector,weights, and sodium limit"""
     profile = {
         "u": build_profile(df,targets),
         "weights": build_weights(df,targets),
@@ -42,6 +42,3 @@ PRESETS = {
     "high_calcium": {"Calcium, Ca": 0.80},
     "low_calorie": {"Energy (KCAL)": 0.20},
 }
-
-profile = make_profile(scaled_table, PRESETS["low_carb"], 1500)
-print(profile["sodium_limit"], profile["weights"].sum())
