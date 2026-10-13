@@ -1,5 +1,6 @@
 import pandas as pd
 from pathlib import Path
+from sklearn.metrics.pairwise import cosine_similarity
 from user_profiles import make_profile, PRESETS
 
 
@@ -23,6 +24,18 @@ def nearest_cluster(centroids, profile):
     weighted = sq.mul(profile["weights"])
     dist = weighted.sum(axis=1) ** 0.5
     return dist.idxmin()
+
+def rank_by_similarity(foods, u, top_n=10):
+    """Returns a series of top n foods, best first """
+    sims = cosine_similarity(foods, u.values.reshape(1,-1))
+    scores = pd.Series(sims.ravel(), index=foods.index)
+    top_scores = scores.sort_values(ascending=False).head(top_n)
+    return top_scores
+
+profile = make_profile(scaled_table, PRESETS["low_carb"], 1500)
+
+
+
 
 
 
