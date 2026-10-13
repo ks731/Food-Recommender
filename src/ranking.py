@@ -1,6 +1,7 @@
 import pandas as pd
 from pathlib import Path
 from sklearn.metrics.pairwise import cosine_similarity
+from constraints import filter_by_sodium, selected_table
 from user_profiles import make_profile, PRESETS
 
 
@@ -32,8 +33,17 @@ def rank_by_similarity(foods, u, top_n=10):
     top_scores = scores.sort_values(ascending=False).head(top_n)
     return top_scores
 
-profile = make_profile(scaled_table, PRESETS["low_carb"], 1500)
+def recommend(profile, top_n=10):
+    """Recommends the top n foods considering sodium limit and nearest cluster"""
+    kept = filter_by_sodium(selected_table, profile["sodium_limit"])
+    c = nearest_cluster(cluster_centroids,profile)
+    in_cluster = cluster_labels[cluster_labels == c].index
+    candidates = scaled_table.loc[in_cluster.intersection(kept.index)]
+    return rank_by_similarity(candidates, profile["u"], top_n)
 
+test_profile = make_profile(scaled_table, PRESETS["low_carb"], 1500)
+strict = make_profile(scaled_table, PRESETS["low_carb"], 300)
+print(recommend(strict, 5))
 
 
 
