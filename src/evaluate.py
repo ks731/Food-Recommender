@@ -1,4 +1,6 @@
 import numpy as np
+import time
+import pandas as pd
 from ranking import recommend, scaled_table, make_profile, PRESETS
 from scipy.spatial.distance import pdist
 from ranking import SODIUM_COLUMN
@@ -47,3 +49,32 @@ def jaccard(result_a, result_b):
     if not a | b:
         return np.nan
     return len(a & b) / len(a | b)
+
+def evaluate_profile(name, profile, top_n=10):
+    """Runs one profile with and without the sodium filter and returns its metrics"""
+    limit = profile["sodium_limit"]
+    start = time.perf_counter()
+    hard = recommend(profile, top_n)
+    seconds = time.perf_counter() - start
+    free = recommend(dict(profile, sodium_limit=float("inf")), top_n)
+    return {
+        "profile": name,
+        "tier": limit,
+        "n_hard": len(hard),
+        "clusters_used": hard["cluster"].nunique(),
+        "vr_hard": violation_rate(hard, limit),
+        "vr_free": violation_rate(free, limit),
+        "sodium_hard": hard[SODIUM_COLUMN].mean(),
+        "sodium_free": free[SODIUM_COLUMN].mean(),
+        "fidelity_hard": fidelity(hard),
+        "fidelity_free": fidelity(free),
+        "diversity_hard": diversity(hard),
+        "diversity_free": diversity(free),
+        "jaccard": jaccard(hard, free),
+        "seconds": seconds,
+    }
+
+def run_evaluation(profiles, top_n=10):
+    """Evaluates every profile and returns one row per profile"""
+    rows = [evaluate_profile(name, p, top_n) for name, p in profiles]
+    return pd.DataFrame(rows).set_index("profile")
