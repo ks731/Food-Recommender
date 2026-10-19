@@ -1,14 +1,16 @@
 import pandas as pd
 from pathlib import Path
 from sklearn.metrics.pairwise import cosine_similarity
-from constraints import filter_by_sodium, selected_table
+from constraints import filter_by_sodium, selected_table, SODIUM_COLUMN
 from user_profiles import make_profile, PRESETS
 
 
 here = Path(__file__).resolve()
 PROJECT_ROOT = here.parent.parent
 DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
+DATA_RAW = PROJECT_ROOT / "data" / "raw"
 
+food_descriptions = pd.read_csv(DATA_RAW / "food.csv", index_col="fdc_id", usecols=["fdc_id","description"])
 scaled_table = pd.read_csv(DATA_PROCESSED / "nutrients_scaled.csv", index_col="fdc_id")
 cluster_labels = pd.read_csv(DATA_PROCESSED / "cluster_labels.csv", index_col="fdc_id").squeeze("columns")
 
@@ -39,11 +41,13 @@ def recommend(profile, top_n=10):
     c = nearest_cluster(cluster_centroids,profile)
     in_cluster = cluster_labels[cluster_labels == c].index
     candidates = scaled_table.loc[in_cluster.intersection(kept.index)]
-    return rank_by_similarity(candidates, profile["u"], top_n)
+    ranked = rank_by_similarity(candidates, profile["u"], top_n)
+    ranked = ranked.to_frame(name="scores").join(food_descriptions).join(selected_table[SODIUM_COLUMN])
+    return ranked
 
 test_profile = make_profile(scaled_table, PRESETS["low_carb"], 1500)
 strict = make_profile(scaled_table, PRESETS["low_carb"], 300)
-print(recommend(strict, 5))
+print(recommend(test_profile, 10))
 
 
 
