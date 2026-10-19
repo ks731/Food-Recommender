@@ -4,6 +4,11 @@ import pandas as pd
 from ranking import recommend, scaled_table, make_profile, PRESETS
 from scipy.spatial.distance import pdist
 from ranking import SODIUM_COLUMN
+from pathlib import Path
+
+here = Path(__file__).resolve()
+PROJECT_ROOT = here.parent.parent
+RESULTS_DIR = PROJECT_ROOT / "results"
 
 TIERS = [1500, 2300]
 
@@ -78,3 +83,24 @@ def run_evaluation(profiles, top_n=10):
     """Evaluates every profile and returns one row per profile"""
     rows = [evaluate_profile(name, p, top_n) for name, p in profiles]
     return pd.DataFrame(rows).set_index("profile")
+
+def summarize(results):
+    """Averages every metric per tier and counts the cases that matter"""
+    results = results.copy()
+    results["fidelity_change_pct"] = 100 * (results["fidelity_hard"] - results["fidelity_free"]) / results["fidelity_free"]
+    by_tier = results.groupby("tier")
+    summary = by_tier.mean(numeric_only=True)
+    summary["profiles"] = by_tier.size()
+    summary["free_violating_profiles"] = by_tier["vr_free"].apply(lambda s: (s > 0).sum())
+    summary["filled_profiles"] = by_tier["clusters_used"].apply(lambda s: (s > 1).sum())
+    summary["worst_fidelity_change_pct"] = by_tier["fidelity_change_pct"].min()
+    return summary
+
+
+if __name__ == "__main__":
+    RESULTS_DIR.mkdir(exist_ok=True)
+    results = run_evaluation(make_profiles())
+    results.to_csv(RESULTS_DIR / "evaluation_results.csv")
+    summary = summarize(results)
+    summary.to_csv(RESULTS_DIR / "evaluation_summary.csv")
+    print(summary.round(4).T)
