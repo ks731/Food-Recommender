@@ -21,12 +21,8 @@ def compute_centroids(df, labels):
 cluster_centroids = compute_centroids(scaled_table, cluster_labels)
 
 def nearest_cluster(centroids, profile):
-    """Returns a profile's nearest centroid"""
-    diff = centroids - profile["u"]
-    sq = diff ** 2
-    weighted = sq.mul(profile["weights"])
-    dist = weighted.sum(axis=1) ** 0.5
-    return dist.idxmin()
+    """Returns the single nearest cluster"""
+    return clusters_by_distance(centroids,profile)[0]
 
 def clusters_by_distance(centroids, profile):
     """Returns all clusters from nearest to farthest from the profile"""
@@ -45,7 +41,7 @@ def rank_by_similarity(foods, u, top_n=10):
     return top_scores
 
 def recommend(profile, top_n=10):
-    """Recommends the top n foods considering sodium limit and nearest cluster"""
+    """Recommends the top n foods under the sodium cap, filling from the next-nearest cluster if needed"""
     kept = filter_by_sodium(selected_table, profile["sodium_limit"])
     pieces = []
     found = 0
@@ -55,14 +51,16 @@ def recommend(profile, top_n=10):
         if candidates.empty:
             continue
         ranked = rank_by_similarity(candidates,profile["u"], top_n - found)
-        pieces.append(ranked)
-        found += len(ranked)
+        piece = ranked.to_frame(name="scores")
+        piece["cluster"] = c
+        pieces.append(piece)
+        found += len(piece)
         if found >= top_n:
             break
     if not pieces:
-        return pd.DataFrame(columns=["scores", "description", SODIUM_COLUMN])
+        return pd.DataFrame(columns=["scores","cluster", "description", SODIUM_COLUMN])
     ranked = pd.concat(pieces)
-    ranked = ranked.to_frame(name="scores").join(food_descriptions).join(selected_table[SODIUM_COLUMN])
+    ranked = ranked.join(food_descriptions).join(selected_table[SODIUM_COLUMN])
     return ranked
 
 test_profile = make_profile(scaled_table, PRESETS["low_carb"], 1500)
