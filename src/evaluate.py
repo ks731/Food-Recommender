@@ -203,3 +203,24 @@ if __name__ == "__main__":
     low_summary = summarize_low_sodium(low)
     low_summary.to_csv(RESULTS_DIR / "low_sodium_pref_summary.csv")
     print(low_summary.round(4))
+
+    # Stress test: users modeled on salty foods (reported separately)
+    salty = make_salty_profiles()
+
+    salty_results = run_evaluation(salty)
+    salty_results.to_csv(RESULTS_DIR / "salty_evaluation_results.csv")
+    salty_summary = summarize(salty_results)
+    salty_summary.to_csv(RESULTS_DIR / "salty_evaluation_summary.csv")
+    print(salty_summary.round(4).T)
+
+    salty_soft = evaluate_soft(salty)
+    salty_soft.to_csv(RESULTS_DIR / "salty_soft_penalty_results.csv", index=False)
+    salty_soft_summary = summarize_soft(salty_soft)
+    salty_soft_summary.to_csv(RESULTS_DIR / "salty_soft_penalty_summary.csv")
+    print(salty_soft_summary.round(4))
+
+    salty_low = evaluate_low_sodium(salty)
+    salty_low.to_csv(RESULTS_DIR / "salty_low_sodium_pref_results.csv", index=False)
+    salty_low_summary = summarize_low_sodium(salty_low)
+    salty_low_summary.to_csv(RESULTS_DIR / "salty_low_sodium_pref_summary.csv")
+    print(salty_low_summary.round(4))
