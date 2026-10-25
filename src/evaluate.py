@@ -5,6 +5,7 @@ from ranking import recommend, rank_by_similarity, scaled_table, make_profile, P
 from user_profiles import add_low_sodium
 from scipy.spatial.distance import pdist
 from ranking import SODIUM_COLUMN
+from constraints import selected_table
 from pathlib import Path
 
 here = Path(__file__).resolve()
@@ -27,6 +28,24 @@ def make_profiles(n_random=95, seed=42):
         targets = {n: float(rng.uniform(0.05, 0.95)) for n in chosen}
         for tier in TIERS:
             profiles.append((f"random{i}_{tier}", make_profile(scaled_table, targets, tier)))
+    return profiles
+
+def make_salty_profiles(n=100, seed=42):
+    """Returns a stress-test list of (name, profile): users whose goals lead to salty foods.
+    Each profile copies a real food over the cap: its 2 most distinctive nutrients (not sodium)
+    at that food's percentiles, clamped to 5-95%. Report separately from make_profiles."""
+    rng = np.random.default_rng(seed)
+    nutrients = scaled_table.columns.drop(SODIUM_COLUMN)
+    pct = scaled_table[nutrients].rank(pct=True)
+    sodium = selected_table[SODIUM_COLUMN]
+    profiles = []
+    for tier in TIERS:
+        salty = sodium[sodium > tier / 3].index
+        anchors = rng.choice(salty, size=n, replace=False)
+        for i, anchor in enumerate(anchors):
+            top2 = scaled_table.loc[anchor, nutrients].abs().sort_values(ascending=False).index[:2]
+            targets = {nut: float(min(max(pct.loc[anchor, nut], 0.05), 0.95)) for nut in top2}
+            profiles.append((f"salty{i}_{tier}", make_profile(scaled_table, targets, tier)))
     return profiles
 
 def violation_rate(result, daily_limit, beta=1/3):
@@ -184,3 +203,24 @@ if __name__ == "__main__":
     low_summary = summarize_low_sodium(low)
     low_summary.to_csv(RESULTS_DIR / "low_sodium_pref_summary.csv")
     print(low_summary.round(4))
+
+    # Stress test: users modeled on salty foods (reported separately)
+    salty = make_salty_profiles()
+
+    salty_results = run_evaluation(salty)
+    salty_results.to_csv(RESULTS_DIR / "salty_evaluation_results.csv")
+    salty_summary = summarize(salty_results)
+    salty_summary.to_csv(RESULTS_DIR / "salty_evaluation_summary.csv")
+    print(salty_summary.round(4).T)
+
+    salty_soft = evaluate_soft(salty)
+    salty_soft.to_csv(RESULTS_DIR / "salty_soft_penalty_results.csv", index=False)
+    salty_soft_summary = summarize_soft(salty_soft)
+    salty_soft_summary.to_csv(RESULTS_DIR / "salty_soft_penalty_summary.csv")
+    print(salty_soft_summary.round(4))
+
+    salty_low = evaluate_low_sodium(salty)
+    salty_low.to_csv(RESULTS_DIR / "salty_low_sodium_pref_results.csv", index=False)
+    salty_low_summary = summarize_low_sodium(salty_low)
+    salty_low_summary.to_csv(RESULTS_DIR / "salty_low_sodium_pref_summary.csv")
+    print(salty_low_summary.round(4))
