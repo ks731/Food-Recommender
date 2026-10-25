@@ -46,3 +46,37 @@ def test_no_duplicate_foods():
     profile = make_profile(scaled_table, {"Vitamin D (D2 + D3)": 1.0}, 1500)
     result = recommend(profile, 10)
     assert result.index.is_unique
+
+
+# High-calorie goal: without the filter its top 10 includes salty crackers
+SALTY = {"Energy (KCAL)": 0.92}
+
+
+def test_soft_with_zero_penalty_matches_unconstrained():
+    profile = make_profile(scaled_table, SALTY, 1500)
+    soft = recommend(profile, 10, hard=False, sodium_penalty=0)
+    free = recommend(dict(profile, sodium_limit=float("inf")), 10)
+    assert list(soft.index) == list(free.index)
+
+
+def test_soft_can_recommend_foods_over_cap():
+    profile = make_profile(scaled_table, SALTY, 1500)
+    soft = recommend(profile, 10, hard=False, sodium_penalty=0)
+    assert (soft[SODIUM_COLUMN] > 500).any()
+
+
+def test_bigger_penalty_lowers_sodium():
+    profile = make_profile(scaled_table, SALTY, 1500)
+    weak = recommend(profile, 10, hard=False, sodium_penalty=0)
+    strong = recommend(profile, 10, hard=False, sodium_penalty=1.0)
+    assert strong[SODIUM_COLUMN].mean() < weak[SODIUM_COLUMN].mean()
+
+
+def test_soft_scores_are_plain_similarity():
+    # The penalty changes the order, not the reported score
+    profile = make_profile(scaled_table, SALTY, 1500)
+    soft = recommend(profile, 10, hard=False, sodium_penalty=1.0)
+    free = recommend(profile, len(scaled_table), hard=False, sodium_penalty=0)
+    shared = soft.index.intersection(free.index)
+    assert len(shared) == len(soft)
+    assert (soft.loc[shared, "scores"] == free.loc[shared, "scores"]).all()

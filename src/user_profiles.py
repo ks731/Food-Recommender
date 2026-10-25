@@ -35,6 +35,15 @@ def make_profile(df, targets, sodium_limit):
     }
     return profile
 
+def add_low_sodium(df, profile, pct=0.10, weight=3.0):
+    """Returns a copy of profile that also prefers low sodium: Sarker & Tanjim's soft
+    approach, where sodium is just one more target (pct percentile, weight x)"""
+    u = profile["u"].copy()
+    weights = profile["weights"].copy()
+    u["Sodium, Na"] = df["Sodium, Na"].quantile(pct)
+    weights["Sodium, Na"] = weight
+    return dict(profile, u=u, weights=weights)
+
 PRESETS = {
     "high_protein": {"Protein": 0.80, "Carbohydrate, by difference": 0.10},
     "low_carb": {"Carbohydrate, by difference": 0.10},

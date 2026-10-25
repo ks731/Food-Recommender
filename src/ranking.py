@@ -40,9 +40,20 @@ def rank_by_similarity(foods, u, top_n=10):
     top_scores = scores.sort_values(ascending=False).head(top_n)
     return top_scores
 
-def recommend(profile, top_n=10):
-    """Recommends the top n foods under the sodium cap, filling from the next-nearest cluster if needed"""
-    kept = filter_by_sodium(selected_table, profile["sodium_limit"])
+def sodium_penalty_scores(foods, u, daily_limit, penalty, beta=1/3):
+    """Returns (similarity, similarity minus penalty * sodium / cap) for every food"""
+    sims = rank_by_similarity(foods, u, top_n=len(foods))
+    cap = daily_limit * beta
+    sodium = selected_table.loc[sims.index, SODIUM_COLUMN]
+    adjusted = sims - penalty * sodium / cap if penalty else sims
+    return sims, adjusted
+
+def recommend(profile, top_n=10, hard=True, sodium_penalty=0.0):
+    """Recommends the top n foods, filling from the next-nearest cluster if needed.
+    hard=True drops foods over the sodium cap; sodium_penalty > 0 lowers each food's
+    rank by sodium_penalty * sodium / cap (the soft baseline). "scores" is always the
+    plain similarity, so fidelity stays comparable across settings."""
+    kept = filter_by_sodium(selected_table, profile["sodium_limit"]) if hard else selected_table
     pieces = []
     found = 0
     for c in clusters_by_distance(cluster_centroids, profile):
@@ -50,8 +61,9 @@ def recommend(profile, top_n=10):
         candidates = scaled_table.loc[in_cluster.intersection(kept.index)]
         if candidates.empty:
             continue
-        ranked = rank_by_similarity(candidates,profile["u"], top_n - found)
-        piece = ranked.to_frame(name="scores")
+        sims, adjusted = sodium_penalty_scores(candidates, profile["u"], profile["sodium_limit"], sodium_penalty)
+        top = adjusted.sort_values(ascending=False, kind="stable").head(top_n - found).index
+        piece = sims[top].to_frame(name="scores")
         piece["cluster"] = c
         pieces.append(piece)
         found += len(piece)
@@ -63,9 +75,10 @@ def recommend(profile, top_n=10):
     ranked = ranked.join(food_descriptions).join(selected_table[SODIUM_COLUMN])
     return ranked
 
-test_profile = make_profile(scaled_table, PRESETS["low_carb"], 1500)
-strict = make_profile(scaled_table, PRESETS["low_carb"], 300)
-print(recommend(test_profile, 10))
+if __name__ == "__main__":
+    test_profile = make_profile(scaled_table, PRESETS["low_carb"], 1500)
+    strict = make_profile(scaled_table, PRESETS["low_carb"], 300)
+    print(recommend(test_profile, 10))
 
 
 
