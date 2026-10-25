@@ -1,7 +1,8 @@
 import numpy as np
 import time
 import pandas as pd
-from ranking import recommend, scaled_table, make_profile, PRESETS
+from ranking import recommend, rank_by_similarity, scaled_table, make_profile, PRESETS
+from user_profiles import add_low_sodium
 from scipy.spatial.distance import pdist
 from ranking import SODIUM_COLUMN
 from pathlib import Path
@@ -84,6 +85,73 @@ def run_evaluation(profiles, top_n=10):
     rows = [evaluate_profile(name, p, top_n) for name, p in profiles]
     return pd.DataFrame(rows).set_index("profile")
 
+PENALTIES = [0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0]
+
+def metrics_row(name, limit, result, hard, **setting):
+    """Returns one result row: the run's setting plus its metrics compared to the hard filter"""
+    return {
+        "profile": name,
+        "tier": limit,
+        **setting,
+        "vr": violation_rate(result, limit),
+        "violated": violation_rate(result, limit) > 0,
+        "sodium": result[SODIUM_COLUMN].mean(),
+        "fidelity": fidelity(result),
+        "diversity": diversity(result),
+        "jaccard_vs_hard": jaccard(result, hard),
+    }
+
+def evaluate_soft(profiles, penalties=PENALTIES, top_n=10):
+    """Runs every profile with the hard filter and with the soft penalty at each strength.
+    Returns one row per (profile, method); the hard filter's rows have penalty NaN."""
+    rows = []
+    for name, profile in profiles:
+        limit = profile["sodium_limit"]
+        hard = recommend(profile, top_n)
+        rows.append(metrics_row(name, limit, hard, hard, method="hard", penalty=np.nan))
+        for lam in penalties:
+            soft = recommend(profile, top_n, hard=False, sodium_penalty=lam)
+            rows.append(metrics_row(name, limit, soft, hard, method="soft", penalty=lam))
+    return pd.DataFrame(rows)
+
+# Sarker & Tanjim's low-sodium preset: sodium as one more target (percentile, weight)
+LOW_SODIUM_SETTINGS = [(0.05, 1.0), (0.05, 3.0), (0.10, 1.0), (0.10, 3.0), (0.25, 1.0), (0.25, 3.0)]
+
+def evaluate_low_sodium(profiles, settings=LOW_SODIUM_SETTINGS, top_n=10):
+    """Runs every profile three ways: no sodium handling, Sarker & Tanjim's low-sodium
+    preference at each (percentile, weight), and the hard filter"""
+    rows = []
+    for name, profile in profiles:
+        limit = profile["sodium_limit"]
+        hard = recommend(profile, top_n)
+        free = recommend(profile, top_n, hard=False)
+        rows.append(metrics_row(name, limit, free, hard, method="none", sodium_pct=np.nan, sodium_weight=np.nan))
+        for pct, weight in settings:
+            pref = recommend(add_low_sodium(scaled_table, profile, pct, weight), top_n, hard=False)
+            # Score against the user's original goal, not the sodium-adjusted one, so fidelity is comparable
+            pref["scores"] = rank_by_similarity(scaled_table.loc[pref.index], profile["u"], len(pref))
+            rows.append(metrics_row(name, limit, pref, hard, method="low_sodium_pref", sodium_pct=pct, sodium_weight=weight))
+        rows.append(metrics_row(name, limit, hard, hard, method="hard", sodium_pct=np.nan, sodium_weight=np.nan))
+    return pd.DataFrame(rows)
+
+def summarize_low_sodium(results):
+    """Averages the low-sodium comparison per tier, method and setting"""
+    keys = ["tier", "method", "sodium_pct", "sodium_weight"]
+    grouped = results.groupby(keys, dropna=False, sort=False)
+    summary = grouped[["vr", "sodium", "fidelity", "diversity", "jaccard_vs_hard"]].mean()
+    summary["violating_profiles"] = grouped["violated"].sum()
+    summary["profiles"] = grouped.size()
+    return summary
+
+def summarize_soft(results):
+    """Averages the soft sweep per tier, method and penalty"""
+    keys = ["tier", "method", "penalty"]
+    grouped = results.groupby(keys, dropna=False)
+    summary = grouped[["vr", "sodium", "fidelity", "diversity", "jaccard_vs_hard"]].mean()
+    summary["violating_profiles"] = grouped["violated"].sum()
+    summary["profiles"] = grouped.size()
+    return summary
+
 def summarize(results):
     """Averages every metric per tier and counts the cases that matter"""
     results = results.copy()
@@ -104,3 +172,15 @@ if __name__ == "__main__":
     summary = summarize(results)
     summary.to_csv(RESULTS_DIR / "evaluation_summary.csv")
     print(summary.round(4).T)
+
+    soft = evaluate_soft(make_profiles())
+    soft.to_csv(RESULTS_DIR / "soft_penalty_results.csv", index=False)
+    soft_summary = summarize_soft(soft)
+    soft_summary.to_csv(RESULTS_DIR / "soft_penalty_summary.csv")
+    print(soft_summary.round(4))
+
+    low = evaluate_low_sodium(make_profiles())
+    low.to_csv(RESULTS_DIR / "low_sodium_pref_results.csv", index=False)
+    low_summary = summarize_low_sodium(low)
+    low_summary.to_csv(RESULTS_DIR / "low_sodium_pref_summary.csv")
+    print(low_summary.round(4))
