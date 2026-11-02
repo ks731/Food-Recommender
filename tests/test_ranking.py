@@ -80,3 +80,25 @@ def test_soft_scores_are_plain_similarity():
     shared = soft.index.intersection(free.index)
     assert len(shared) == len(soft)
     assert (soft.loc[shared, "scores"] == free.loc[shared, "scores"]).all()
+
+@pytest.fixture(scope="module")
+def labels_k4():
+    from k_check import fit_labels
+    return fit_labels(scaled_table, 4)
+
+
+def test_passing_saved_labels_matches_default():
+    from ranking import cluster_labels
+    profile = make_profile(scaled_table, PRESETS["high_protein"], 1500)
+    default = recommend(profile, 10)
+    explicit = recommend(profile, 10, labels=cluster_labels)
+    assert default.equals(explicit)
+
+
+@pytest.mark.parametrize("preset", list(PRESETS))
+@pytest.mark.parametrize("daily_limit", [1500, 2300])
+def test_k4_returns_ten_foods_under_cap(labels_k4, preset, daily_limit):
+    result = recommend(make_profile(scaled_table, PRESETS[preset], daily_limit), 10, labels=labels_k4)
+    assert len(result) == 10
+    assert (result[SODIUM_COLUMN] <= daily_limit / 3).all()
+    assert set(result["cluster"]) <= set(labels_k4.unique())

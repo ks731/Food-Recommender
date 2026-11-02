@@ -48,16 +48,21 @@ def sodium_penalty_scores(foods, u, daily_limit, penalty, beta=1/3):
     adjusted = sims - penalty * sodium / cap if penalty else sims
     return sims, adjusted
 
-def recommend(profile, top_n=10, hard=True, sodium_penalty=0.0):
+def recommend(profile, top_n=10, hard=True, sodium_penalty=0.0, labels=None):
     """Recommends the top n foods, filling from the next-nearest cluster if needed.
     hard=True drops foods over the sodium cap; sodium_penalty > 0 lowers each food's
     rank by sodium_penalty * sodium / cap (the soft baseline). "scores" is always the
-    plain similarity, so fidelity stays comparable across settings."""
+    plain similarity, so fidelity stays comparable across settings.
+    labels: a cluster label per food (e.g. from a k = 4 run); None uses the saved k = 8 clusters."""
+    if labels is None:
+        labels, centroids = cluster_labels, cluster_centroids
+    else:
+        centroids = compute_centroids(scaled_table, labels)
     kept = filter_by_sodium(selected_table, profile["sodium_limit"]) if hard else selected_table
     pieces = []
     found = 0
-    for c in clusters_by_distance(cluster_centroids, profile):
-        in_cluster = cluster_labels[cluster_labels == c].index
+    for c in clusters_by_distance(centroids, profile):
+        in_cluster = labels[labels == c].index
         candidates = scaled_table.loc[in_cluster.intersection(kept.index)]
         if candidates.empty:
             continue

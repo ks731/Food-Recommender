@@ -75,13 +75,13 @@ def jaccard(result_a, result_b):
         return np.nan
     return len(a & b) / len(a | b)
 
-def evaluate_profile(name, profile, top_n=10):
+def evaluate_profile(name, profile, top_n=10,labels=None):
     """Runs one profile with and without the sodium filter and returns its metrics"""
     limit = profile["sodium_limit"]
     start = time.perf_counter()
-    hard = recommend(profile, top_n)
+    hard = recommend(profile, top_n, labels=labels)
     seconds = time.perf_counter() - start
-    free = recommend(dict(profile, sodium_limit=float("inf")), top_n)
+    free = recommend(dict(profile, sodium_limit=float("inf")), top_n, labels=labels)
     return {
         "profile": name,
         "tier": limit,
@@ -99,9 +99,9 @@ def evaluate_profile(name, profile, top_n=10):
         "seconds": seconds,
     }
 
-def run_evaluation(profiles, top_n=10):
+def run_evaluation(profiles, top_n=10,labels=None):
     """Evaluates every profile and returns one row per profile"""
-    rows = [evaluate_profile(name, p, top_n) for name, p in profiles]
+    rows = [evaluate_profile(name, p, top_n,labels) for name, p in profiles]
     return pd.DataFrame(rows).set_index("profile")
 
 PENALTIES = [0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0]

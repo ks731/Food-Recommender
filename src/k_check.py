@@ -5,6 +5,7 @@ import math
 import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
+from evaluate import run_evaluation, summarize, make_profiles, make_salty_profiles
 import matplotlib.pyplot as plt
 from pathlib import Path
 from sklearn.cluster import KMeans
@@ -93,6 +94,14 @@ def plot_pca_clusters(coords, labels, explained, ncols=4):
     fig.tight_layout()
     return fig
 
+def evaluate_by_k(profiles, labels_by_k):
+    """Runs the hard-vs-free evaluation once per k and stacks the per-tier summaries"""
+    summaries = []
+    for k, labels in labels_by_k.items():
+        summary = summarize(run_evaluation(profiles, labels=labels))
+        summary["k"] = k
+        summaries.append(summary)
+    return pd.concat(summaries).reset_index().set_index(["k", "tier"])
 
 
 if __name__ == "__main__":
@@ -103,14 +112,23 @@ if __name__ == "__main__":
     scan.to_csv(RESULTS_DIR / "k_check.csv")
     fig = plot_elbow(scan)
     fig.savefig(SLIDES_DIR / "elbow_silhouette.png", dpi=200)
+
     coords, explained = pca_2d(scaled)
     print(f"PC1 + PC2 explain {explained.sum():.1%} of the variance")
     saved_k8 = pd.read_csv(DATA_PROCESSED / "cluster_labels.csv", index_col="fdc_id").squeeze("columns")
+    labels_by_k = {}
     for k in (8, 4):
         labels = fit_labels(scaled, k)
+        labels_by_k[k] = labels
         if k == 8:
             print("k = 8 labels match cluster_labels.csv:", (labels == saved_k8.reindex(labels.index)).all())
         if k == 4:
             labels.to_csv(DATA_PROCESSED / "cluster_labels_k4.csv")
         fig = plot_pca_clusters(coords, labels, explained)
         fig.savefig(SLIDES_DIR / f"pca_clusters_k{k}.png", dpi=200)
+
+    for name, profiles in [("evaluation", make_profiles()), ("salty_evaluation", make_salty_profiles())]:
+        by_k = evaluate_by_k(profiles, labels_by_k)
+        by_k.to_csv(RESULTS_DIR / f"{name}_by_k.csv")
+        print(name)
+        print(by_k.round(4).T)
