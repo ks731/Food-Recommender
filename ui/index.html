@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DASH Food Recommender</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #111412;
+    --panel: #181c19;
+    --line: #2b312d;
+    --text: #e8ece8;
+    --muted: #9ba49e;
+    --green: #79c09f;
+    --green-bg: #1f2e27;
+    --salmon: #e08070;
+    --blocked-bg: #36201d;
+    --sans: "Space Grotesk", "Archivo", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+    --mono: "JetBrains Mono", "IBM Plex Mono", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; padding: 28px; background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.35; }
+  h1, h2, h3, p { margin: 0; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+  .mono { font-family: var(--mono); }
+  .muted { color: var(--muted); }
+
+  /* header */
+  .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; flex-wrap: wrap; }
+  h1 { font-size: clamp(30px, 4.4vw, 46px); font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
+  .sub { margin-top: 6px; color: var(--muted); font-size: 15px; }
+  .source { text-align: right; font-family: var(--mono); font-size: 13px; color: var(--muted); line-height: 1.5; padding-top: 6px; }
+  .rule { height: 8px; background: var(--text); margin: 18px 0 24px; }
+
+  /* layout */
+  .layout { display: grid; grid-template-columns: 345px minmax(0, 1fr); gap: 20px; align-items: start; }
+  .panel { border: 2px solid var(--text); background: var(--bg); }
+
+  /* profile panel */
+  .profile { padding: 22px 20px 20px; }
+  .profile h2 { font-size: 24px; font-weight: 800; }
+  .profile .underline { height: 4px; background: var(--text); margin: 10px 0 0; }
+  .label { font-size: 12px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin: 18px 0 10px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .goal { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: #0c0e0d; font-size: 15px; font-weight: 600; }
+  .goal[aria-pressed="true"] { background: var(--green); border-color: var(--green); color: var(--bg); }
+  .plans { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .plan { border: 0; background: var(--bg); padding: 9px 6px; text-align: center; line-height: 1.2; }
+  .plan b { display: block; font-size: 15px; }
+  .plan span { font-size: 12px; opacity: 0.8; }
+  .plan[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+  .cap-note, .vec-note { color: var(--muted); font-size: 13px; line-height: 1.45; margin-top: 10px; }
+  .target-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .target-row:last-of-type { border-bottom: 0; }
+  .target-row .w { color: var(--green); font-weight: 700; }
+  .target-row .w1 { color: var(--muted); font-size: 12px; }
+  .target-row .val { font-family: var(--mono); font-size: 13px; text-align: right; }
+  .vec-end { height: 4px; background: var(--text); margin: 2px 0 0; }
+  .go { width: 100%; margin-top: 20px; padding: 13px; border: 0; border-radius: 8px; background: var(--green); color: var(--bg); font-size: 16px; font-weight: 800; }
+  .go:disabled { opacity: 0.6; cursor: progress; }
+  .stale { margin-top: 8px; font-size: 13px; color: var(--salmon); }
+
+  /* pipeline step cards */
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
+  .step { padding: 14px 18px 16px; border-left: 1px solid var(--line); min-width: 0; }
+  .step:first-child { border-left: 0; }
+  .step .k { font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+  .step .v { font-size: 24px; font-weight: 800; margin: 4px 0 2px; }
+  .step .v.removed { color: var(--salmon); }
+  .step .c { font-size: 13px; color: var(--muted); }
+
+  /* results */
+  .results { margin-top: 18px; }
+  .results-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 20px; background: var(--panel); border-bottom: 4px solid var(--text); }
+  .results-head h2 { font-size: 26px; font-weight: 800; }
+  .toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; padding: 3px; background: var(--bg); }
+  .toggle button { border: 0; background: transparent; padding: 5px 12px; border-radius: 4px; font-family: var(--mono); font-size: 14px; }
+  .toggle button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+  ol.foods { list-style: none; margin: 0; padding: 0; background: var(--panel); }
+  .food { display: grid; grid-template-columns: 38px minmax(0, 1fr) 190px 190px; gap: 16px; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+  .food:last-child { border-bottom: 0; }
+  .rank { font-size: 22px; font-weight: 800; color: var(--muted); }
+  .name { font-size: 17px; font-weight: 700; line-height: 1.25; }
+  .meta { font-size: 13px; color: var(--muted); margin: 2px 0 8px; }
+  .nutrients { display: flex; flex-wrap: wrap; gap: 6px; }
+  .nutrient { font-family: var(--mono); font-size: 12px; padding: 2px 7px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); white-space: nowrap; }
+  .nutrient.on { border-color: var(--green); background: var(--green-bg); }
+  .meter .row { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--muted); margin-bottom: 5px; }
+  .meter .row b { color: var(--text); font-family: var(--mono); font-size: 14px; }
+  .bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .fill { height: 100%; background: var(--green); border-radius: 4px; }
+  .pill { display: inline-block; margin-top: 6px; width: 100%; text-align: center; border: 1px solid var(--salmon); color: var(--salmon); border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; padding: 1px 6px; }
+  .empty { padding: 28px 20px; color: var(--muted); background: var(--panel); }
+
+  /* blocked panel */
+  .blocked { margin-top: 20px; border-color: var(--salmon); }
+  .blocked-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 18px 20px; background: var(--panel); border-bottom: 2px solid var(--salmon); }
+  .blocked-head h2 { font-size: 26px; font-weight: 800; color: var(--salmon); }
+  .blocked-head .count { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+  .blocked-desc { padding: 14px 20px 16px; padding-right: max(20px, 30%); background: var(--panel); color: var(--muted); font-size: 15px; }
+  .blocked .food { background: var(--blocked-bg); border-bottom-color: #4a2a25; }
+  .blocked .name { text-decoration: line-through; text-decoration-color: var(--salmon); text-decoration-thickness: 2px; }
+  .blocked .nutrient { background: #1a0f0d; }
+  .blocked .fill { background: var(--salmon); }
+
+  .error { margin-bottom: 18px; padding: 12px 16px; border: 2px solid var(--salmon); border-radius: 8px; background: var(--blocked-bg); color: var(--text); }
+  .error b { color: var(--salmon); }
+  .foot { margin-top: 28px; color: var(--muted); font-size: 12px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  @media (prefers-reduced-motion: no-preference) { .fill { transition: width 0.35s ease; } }
+
+  @media (max-width: 980px) {
+    body { padding: 18px; }
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    .steps { grid-template-columns: repeat(2, 1fr); }
+    .step:nth-child(3) { border-left: 0; }
+    .step:nth-child(n+3) { border-top: 1px solid var(--line); }
+    .food { grid-template-columns: 30px minmax(0, 1fr); row-gap: 12px; }
+    .food .meter { grid-column: 2; }
+    .source { text-align: left; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>DASH Food Recommender</h1>
+    <p class="sub">Food recommendations by nutrient profile, with a hard sodium limit for hypertension.</p>
+  </div>
+  <div class="source"><div id="src">USDA SR Legacy</div><div id="counts">&nbsp;</div></div>
+</header>
+<div class="rule" role="presentation"></div>
+
+<div class="layout">
+  <aside class="panel profile" aria-label="Your profile">
+    <h2>Your Profile</h2>
+    <div class="underline" role="presentation"></div>
+
+    <div class="label" id="goal-label">Nutrition goal</div>
+    <div class="chips" id="goals" role="group" aria-labelledby="goal-label"></div>
+
+    <div class="label" id="plan-label">DASH sodium plan</div>
+    <div class="plans" id="plans" role="group" aria-labelledby="plan-label"></div>
+    <p class="cap-note" id="cap-note"></p>
+
+    <div class="label">Target vector</div>
+    <div id="targets"></div>
+    <div class="vec-end" role="presentation"></div>
+    <p class="vec-note">Targeted nutrients count 3&times; when finding the nearest cluster. All other nutrients target the dataset median at 1&times; weight.</p>
+
+    <button class="go" id="go" type="button">Get recommendations</button>
+    <p class="stale" id="stale" hidden>Profile changed. Press the button to update the list.</p>
+  </aside>
+
+  <main>
+    <div id="error" class="error" role="alert" hidden></div>
+    <div class="steps" id="steps" aria-live="polite"></div>
+
+    <section class="panel results" aria-labelledby="results-title">
+      <div class="results-head">
+        <h2 id="results-title">Recommended foods</h2>
+        <div class="toggle" id="topn" role="group" aria-label="Number of foods"></div>
+      </div>
+      <ol class="foods" id="foods"></ol>
+    </section>
+
+    <section class="panel blocked" id="blocked" aria-labelledby="blocked-title" hidden>
+      <div class="blocked-head">
+        <h2 id="blocked-title">Blocked by the sodium filter</h2>
+        <span class="count" id="blocked-count"></span>
+      </div>
+      <p class="blocked-desc" id="blocked-desc"></p>
+      <ol class="foods" id="blocked-foods"></ol>
+    </section>
+  </main>
+</div>
+<p class="foot">Per-100 g values from USDA SR Legacy. The sodium cap is a modeling assumption: DASH gives daily limits only, so each food may use one third of the day's limit. Not medical advice.</p>
+
+<script>
+(function () {
+  "use strict";
+  var state = { meta: null, goal: null, limit: null, topN: null, shown: null, request: 0 };
+  var $ = function (id) { return document.getElementById(id); };
+
+  function el(tag, props, children) {
+    var node = document.createElement(tag);
+    Object.keys(props || {}).forEach(function (key) {
+      if (key === "class") node.className = props[key];
+      else if (key === "text") node.textContent = props[key];
+      else node.setAttribute(key, props[key]);
+    });
+    (children || []).forEach(function (child) { if (child) node.appendChild(child); });
+    return node;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+  function num(n) { return Number(n).toLocaleString("en-US"); }
+  function ordinal(n) {
+    var mod100 = n % 100, mod10 = n % 10;
+    if (mod100 >= 11 && mod100 <= 13) return n + "th";
+    return n + (mod10 === 1 ? "st" : mod10 === 2 ? "nd" : mod10 === 3 ? "rd" : "th");
+  }
+  function amount(value, unit) {
+    if (unit === "kcal") return Math.round(value) + "kcal";
+    if (unit === "mg") return num(Math.round(value)) + " mg";
+    var text = (Math.round(value * 10) / 10).toFixed(1).replace(/\.0$/, "");
+    return text + " " + unit;
+  }
+  function currentGoal() { return state.meta.goals.filter(function (g) { return g.id === state.goal; })[0]; }
+  function capFor(limit) { return limit * state.meta.beta; }
+
+  /* ---- profile panel (updates instantly, no request needed) ---- */
+  function renderGoals() {
+    var box = $("goals"); clear(box);
+    state.meta.goals.forEach(function (goal) {
+      var button = el("button", { "class": "goal", type: "button", text: goal.label, "aria-pressed": String(goal.id === state.goal) });
+      button.addEventListener("click", function () { state.goal = goal.id; renderProfile(); });
+      box.appendChild(button);
+    });
+  }
+  function renderPlans() {
+    var box = $("plans"); clear(box);
+    state.meta.plans.forEach(function (plan) {
+      var button = el("button", { "class": "plan", type: "button", "aria-pressed": String(plan.limit === state.limit) },
+        [el("b", { text: num(plan.limit) + " mg/day" }), el("span", { text: plan.name })]);
+      button.addEventListener("click", function () { state.limit = plan.limit; renderProfile(); });
+      box.appendChild(button);
+    });
+  }
+  function renderTargets() {
+    var goal = currentGoal(), box = $("targets"); clear(box);
+    goal.targets.forEach(function (t) {
+      box.appendChild(el("div", { "class": "target-row" }, [
+        el("span", {}, [document.createTextNode(t.label + " "), el("span", { "class": "w", text: t.weight + "\u00d7" })]),
+        el("span", { "class": "val", text: amount(t.value, t.unit) + " \u00b7 " + ordinal(t.pct) + " pct" })
+      ]));
+    });
+    box.appendChild(el("div", { "class": "target-row" }, [
+      el("span", {}, [document.createTextNode("Other " + goal.other_nutrients + " nutrients "), el("span", { "class": "w1", text: "1\u00d7" })]),
+      el("span", { "class": "val", text: "median" })
+    ]));
+  }
+  function renderProfile() {
+    renderGoals(); renderPlans(); renderTargets();
+    $("cap-note").textContent = "Per-meal cap = \u2153 of the daily limit = " + num(Math.round(capFor(state.limit))) +
+      " mg sodium per 100 g. Foods over the cap are removed before ranking.";
+    var stale = state.shown && (state.shown.goal !== state.goal || state.shown.limit !== state.limit);
+    $("stale").hidden = !stale;
+  }
+  function renderTopN() {
+    var box = $("topn"); clear(box);
+    state.meta.top_n_choices.forEach(function (n) {
+      var button = el("button", { type: "button", text: "Top " + n, "aria-pressed": String(n === state.topN) });
+      button.addEventListener("click", function () { state.topN = n; run(); });
+      box.appendChild(button);
+    });
+  }
+
+  /* ---- results ---- */
+  function meter(label, valueText, fraction, over) {
+    var pct = Math.max(0, Math.min(1, fraction)) * 100;
+    return el("div", { "class": "meter" }, [
+      el("div", { "class": "row" }, [el("span", { text: label }), el("b", { text: valueText })]),
+      el("div", { "class": "bar", role: "presentation" }, [el("div", { "class": "fill", style: "width:" + pct.toFixed(1) + "%" })]),
+      over ? el("span", { "class": "pill", text: "OVER " + num(Math.round(over)) + " MG CAP" }) : null
+    ]);
+  }
+  function foodRow(food, cap, blocked) {
+    var where = (food.group ? food.group + " \u00b7 " : "") + "cluster " + food.cluster;
+    var chips = food.chips.map(function (c) {
+      return el("span", { "class": "nutrient" + (c.targeted ? " on" : ""), text: c.label + " " + amount(c.value, c.unit) });
+    });
+    return el("li", { "class": "food" }, [
+      el("div", { "class": "rank", text: String(food.rank) }),
+      el("div", {}, [el("div", { "class": "name", text: food.name }), el("div", { "class": "meta", text: where }), el("div", { "class": "nutrients" }, chips)]),
+      meter("Match", Math.round(food.match * 100) + "%", food.match, 0),
+      meter("Sodium / 100 g", num(Math.round(food.sodium)) + " mg", food.sodium / cap, blocked ? cap : 0)
+    ]);
+  }
+  function renderSteps(data) {
+    var s = data.steps, box = $("steps"); clear(box);
+    var filled = s.clusters_used > 1 ? " \u00b7 filled from " + s.clusters_used + " clusters" : "";
+    var cards = [
+      ["1 \u00b7 Profile", data.profile.label, "23-nutrient target vector", ""],
+      ["2 \u00b7 Nearest cluster", "#" + s.nearest_cluster, num(s.cluster_size) + " candidate foods" + filled, ""],
+      ["3 \u00b7 Sodium filter", s.removed ? "\u2212" + num(s.removed) : "0", "foods over " + num(Math.round(data.profile.cap)) + " mg removed", s.removed ? "removed" : ""],
+      ["4 \u00b7 Rank", "Top " + s.top_n, "cosine similarity", ""]
+    ];
+    cards.forEach(function (c) {
+      box.appendChild(el("div", { "class": "step" }, [
+        el("div", { "class": "k", text: c[0] }), el("div", { "class": "v " + c[3], text: c[1] }), el("div", { "class": "c", text: c[2] })
+      ]));
+    });
+  }
+  function render(data) {
+    var cap = data.profile.cap, list = $("foods"); clear(list);
+    renderSteps(data);
+    if (!data.foods.length) {
+      list.appendChild(el("li", { "class": "empty", text: "No foods pass the sodium filter for this goal." }));
+    }
+    data.foods.forEach(function (food) { list.appendChild(foodRow(food, cap, false)); });
+
+    var blocked = $("blocked"), blist = $("blocked-foods"); clear(blist);
+    blocked.hidden = !data.blocked.length;
+    if (data.blocked.length) {
+      var capText = num(Math.round(cap));
+      $("blocked-count").textContent = num(data.steps.removed) + " removed from cluster #" + data.steps.nearest_cluster;
+      $("blocked-desc").textContent = "These are the best-matching foods that went over the " + capText +
+        " mg cap. A soft-preference system could still recommend them. Ours never will.";
+      data.blocked.forEach(function (food) { blist.appendChild(foodRow(food, cap, true)); });
+    }
+  }
+
+  /* ---- talking to the server ---- */
+  function showError(message) {
+    var box = $("error"); clear(box);
+    if (!message) { box.hidden = true; return; }
+    box.appendChild(el("b", { text: "Could not get recommendations. " }));
+    box.appendChild(document.createTextNode(message));
+    box.hidden = false;
+  }
+  function getJSON(path) {
+    return fetch(path, { cache: "no-store" }).then(function (response) {
+      return response.json().then(function (body) {
+        if (!response.ok) throw new Error(body.error || response.statusText);
+        return body;
+      });
+    });
+  }
+  function run() {
+    var ticket = ++state.request, button = $("go");
+    renderTopN();
+    button.disabled = true; $("foods").setAttribute("aria-busy", "true");
+    var path = "/api/recommend?goal=" + encodeURIComponent(state.goal) + "&limit=" + state.limit + "&top_n=" + state.topN;
+    return getJSON(path).then(function (data) {
+      if (ticket !== state.request) return;
+      showError(""); render(data);
+      state.shown = { goal: state.goal, limit: state.limit };
+      renderProfile();
+    }).catch(function (err) {
+      if (ticket !== state.request) return;
+      showError(err.message === "Failed to fetch" ? "The server is not reachable. Is python3 ui/server.py still running?" : err.message);
+    }).then(function () {
+      if (ticket !== state.request) return;
+      button.disabled = false; $("foods").removeAttribute("aria-busy");
+    });
+  }
+
+  $("go").addEventListener("click", run);
+  getJSON("/api/meta").then(function (meta) {
+    state.meta = meta;
+    state.goal = meta.default.goal; state.limit = meta.default.limit; state.topN = meta.default.top_n;
+    $("src").textContent = meta.source;
+    $("counts").textContent = num(meta.foods) + " foods \u00b7 " + meta.nutrients + " nutrients";
+    renderProfile();
+    return run();
+  }).catch(function (err) {
+    showError(err.message === "Failed to fetch" ? "The server is not reachable. Is python3 ui/server.py still running?" : err.message);
+  });
+})();
+</script>
+</body>
+</html>
