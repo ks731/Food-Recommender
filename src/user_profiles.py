@@ -26,12 +26,13 @@ def build_weights(df,targets):
     weights[nutrients] = 3.0
     return weights
 
-def make_profile(df, targets, sodium_limit):
-    """Returns profile with target vector,weights, and sodium limit"""
+def make_profile(df, targets, sodium_limit, grams=100):
+    """Returns profile with target vector, weights, sodium limit, and portion size in grams"""
     profile = {
         "u": build_profile(df,targets),
         "weights": build_weights(df,targets),
         "sodium_limit": sodium_limit,
+        "grams": grams,
     }
     return profile
 

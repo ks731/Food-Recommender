@@ -102,3 +102,16 @@ def test_k4_returns_ten_foods_under_cap(labels_k4, preset, daily_limit):
     assert len(result) == 10
     assert (result[SODIUM_COLUMN] <= daily_limit / 3).all()
     assert set(result["cluster"]) <= set(labels_k4.unique())
+
+@pytest.mark.parametrize("grams", [50, 200, 300])
+def test_portion_sodium_stays_under_meal_cap(grams):
+    profile = make_profile(scaled_table, PRESETS["high_protein"], 1500, grams=grams)
+    result = recommend(profile, 10)
+    assert len(result) == 10
+    assert (result[SODIUM_COLUMN] * grams / 100 <= 500).all()
+
+
+def test_default_profile_portion_matches_old_behavior():
+    profile = make_profile(scaled_table, PRESETS["low_carb"], 1500)
+    no_grams = {k: v for k, v in profile.items() if k != "grams"}
+    assert recommend(profile, 10).equals(recommend(no_grams, 10))

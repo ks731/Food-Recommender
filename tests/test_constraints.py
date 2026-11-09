@@ -41,3 +41,18 @@ def test_no_safe_food_is_dropped(daily_limit):
     kept = filter_by_sodium(selected_table, daily_limit)
     should_keep = selected_table[selected_table[SODIUM_COLUMN] <= daily_limit / 3]
     assert set(kept.index) == set(should_keep.index)
+
+def test_bigger_portion_tightens_cap():
+    # 200 g portion: 500 mg meal cap means at most 250 mg per 100 g
+    kept = filter_by_sodium(toy_table(), 1500, grams=200)
+    assert list(kept.index) == [1]
+
+
+def test_smaller_portion_loosens_cap():
+    # 50 g portion: at most 1,000 mg per 100 g
+    kept = filter_by_sodium(toy_table(), 1500, grams=50)
+    assert list(kept.index) == [1, 2, 3, 4]
+
+
+def test_default_portion_is_100g():
+    assert filter_by_sodium(toy_table(), 1500).equals(filter_by_sodium(toy_table(), 1500, grams=100))

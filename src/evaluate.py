@@ -48,11 +48,11 @@ def make_salty_profiles(n=100, seed=42):
             profiles.append((f"salty{i}_{tier}", make_profile(scaled_table, targets, tier)))
     return profiles
 
-def violation_rate(result, daily_limit, beta=1/3):
-    """Returns the fraction of recommended foods over the sodium cap"""
+def violation_rate(result, daily_limit, beta=1/3, grams=100):
+    """Returns the fraction of recommended foods whose sodium in a `grams` portion is over the cap"""
     if len(result) == 0:
         return np.nan
-    cap = daily_limit * beta
+    cap = daily_limit * beta * 100 / grams
     return (result[SODIUM_COLUMN] > cap).mean()
 
 def fidelity(result):
