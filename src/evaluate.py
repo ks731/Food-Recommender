@@ -2,10 +2,11 @@ import numpy as np
 import time
 import pandas as pd
 from ranking import recommend, rank_by_similarity, scaled_table, make_profile, PRESETS
-from user_profiles import add_low_sodium
+from user_profiles import add_low_sodium, add_kidney
 from scipy.spatial.distance import pdist
 from ranking import SODIUM_COLUMN
-from constraints import selected_table, sodium_cap_per_100g, portion_grams, load_serving_grams
+from constraints import (selected_table, sodium_cap_per_100g, portion_grams, load_serving_grams,
+                         kidney_table, KIDNEY_CAPS)
 from pathlib import Path
 
 here = Path(__file__).resolve()
@@ -213,6 +214,49 @@ def summarize_serving(results):
     summary["profiles_changed"] = by_tier["jaccard"].apply(lambda s: (s < 1).sum())
     return summary
 
+def kidney_violation_rate(result, caps=KIDNEY_CAPS, grams=100):
+    """Returns the fraction of recommended foods over at least one kidney cap in a `grams` portion.
+    A food with no value for a capped nutrient counts as over"""
+    if len(result) == 0:
+        return np.nan
+    g = portion_grams(result.index, grams)
+    amounts = kidney_table.loc[result.index, list(caps)].mul(g / 100, axis=0)
+    return (~amounts.le(pd.Series(caps)).all(axis=1)).mean()
+
+def compare_kidney(profiles, top_n=10):
+    """Runs every profile twice: hypertension only (DASH sodium) and with the kidney caps on.
+    Both lists are checked against the kidney caps, so we see what the DASH-only list would let through"""
+    rows = []
+    for name, profile in profiles:
+        dash = recommend(profile, top_n)
+        ckd = recommend(add_kidney(profile), top_n)
+        rows.append({
+            "profile": name,
+            "tier": profile["sodium_limit"],
+            "n_ckd": len(ckd),
+            "kidney_vr_dash": kidney_violation_rate(dash),
+            "kidney_vr_ckd": kidney_violation_rate(ckd),
+            "fidelity_dash": fidelity(dash),
+            "fidelity_ckd": fidelity(ckd),
+            "jaccard": jaccard(dash, ckd),
+            "clusters_used_dash": dash["cluster"].nunique(),
+            "clusters_used_ckd": ckd["cluster"].nunique(),
+        })
+    return pd.DataFrame(rows).set_index("profile")
+
+def summarize_kidney(results):
+    """Averages the kidney comparison per tier and counts the profiles that matter"""
+    results = results.copy()
+    results["fidelity_change_pct"] = 100 * (results["fidelity_ckd"] - results["fidelity_dash"]) / results["fidelity_dash"]
+    by_tier = results.groupby("tier")
+    summary = by_tier.mean(numeric_only=True)
+    summary["profiles"] = by_tier.size()
+    summary["dash_violating_kidney"] = by_tier["kidney_vr_dash"].apply(lambda s: (s > 0).sum())
+    summary["ckd_short_lists"] = by_tier["n_ckd"].apply(lambda s: (s < 10).sum())
+    summary["ckd_filled"] = by_tier["clusters_used_ckd"].apply(lambda s: (s > 1).sum())
+    summary["worst_fidelity_change_pct"] = by_tier["fidelity_change_pct"].min()
+    return summary
+
 if __name__ == "__main__":
     RESULTS_DIR.mkdir(exist_ok=True)
     results = run_evaluation(make_profiles())
@@ -261,3 +305,16 @@ if __name__ == "__main__":
     serving_summary = summarize_serving(serving_results)
     serving_summary.to_csv(RESULTS_DIR / "serving_comparison_summary.csv")
     print(serving_summary.round(4).T)
+
+    # Kidney (CKD stages 3-4) caps: same users, hypertension only vs. with the kidney caps on
+    kidney_results = compare_kidney(make_profiles())
+    kidney_results.to_csv(RESULTS_DIR / "kidney_comparison_results.csv")
+    kidney_summary = summarize_kidney(kidney_results)
+    kidney_summary.to_csv(RESULTS_DIR / "kidney_comparison_summary.csv")
+    print(kidney_summary.round(4).T)
+
+    salty_kidney = compare_kidney(salty)
+    salty_kidney.to_csv(RESULTS_DIR / "salty_kidney_comparison_results.csv")
+    salty_kidney_summary = summarize_kidney(salty_kidney)
+    salty_kidney_summary.to_csv(RESULTS_DIR / "salty_kidney_comparison_summary.csv")
+    print(salty_kidney_summary.round(4).T)

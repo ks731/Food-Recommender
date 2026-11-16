@@ -1,7 +1,8 @@
 import pandas as pd
 from pathlib import Path
 from sklearn.metrics.pairwise import cosine_similarity
-from constraints import filter_by_sodium, sodium_cap_per_100g, portion_grams, selected_table, SODIUM_COLUMN
+from constraints import (filter_by_sodium, filter_by_kidney, sodium_cap_per_100g, portion_grams,
+                         selected_table, SODIUM_COLUMN)
 from user_profiles import make_profile, PRESETS
 
 
@@ -54,13 +55,16 @@ def recommend(profile, top_n=10, hard=True, sodium_penalty=0.0, labels=None):
     rank by sodium_penalty * sodium / cap (the soft baseline). "scores" is always the
     plain similarity, so fidelity stays comparable across settings.
     labels: a cluster label per food (e.g. from a k = 4 run); None uses the saved k = 8 clusters.
-    The sodium check uses the profile's portion size ("grams", default 100)."""
+    The sodium check uses the profile's portion size ("grams", default 100).
+    If the profile has "kidney_caps" (see add_kidney), hard=True also drops foods over those caps."""
     if labels is None:
         labels, centroids = cluster_labels, cluster_centroids
     else:
         centroids = compute_centroids(scaled_table, labels)
     grams = profile.get("grams", 100)
     kept = filter_by_sodium(selected_table, profile["sodium_limit"], grams=grams) if hard else selected_table
+    if hard and profile.get("kidney_caps"):
+        kept = filter_by_kidney(kept, profile["kidney_caps"], grams=grams)
     pieces = []
     found = 0
     for c in clusters_by_distance(centroids, profile):

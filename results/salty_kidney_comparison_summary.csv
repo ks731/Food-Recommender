@@ -1,0 +1,3 @@
+tier,n_ckd,kidney_vr_dash,kidney_vr_ckd,fidelity_dash,fidelity_ckd,jaccard,clusters_used_dash,clusters_used_ckd,fidelity_change_pct,profiles,dash_violating_kidney,ckd_short_lists,ckd_filled,worst_fidelity_change_pct
+1500,10.0,0.365,0.0,0.8306181683357512,0.7476507647782651,0.590596539683227,1.0,1.0,-9.793701854480792,100,56,0,0,-59.62305610492196
+2300,10.0,0.469,0.0,0.8216328689101674,0.7137580087110564,0.47513316319043875,1.0,1.0,-12.588460489005795,100,70,0,0,-59.623056104921965

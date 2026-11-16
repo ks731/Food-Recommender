@@ -45,6 +45,14 @@ def add_low_sodium(df, profile, pct=0.10, weight=3.0):
     weights["Sodium, Na"] = weight
     return dict(profile, u=u, weights=weights)
 
+def add_kidney(profile, nutrients=None):
+    """Returns a copy of profile with the kidney (CKD stages 3-4) caps turned on.
+    nutrients: which caps to use, e.g. ["Sodium, Na", "Phosphorus, P"]; None uses all of them.
+    Profiles without this keep the hypertension-only (DASH sodium) behavior"""
+    from constraints import KIDNEY_CAPS
+    chosen = list(KIDNEY_CAPS) if nutrients is None else nutrients
+    return dict(profile, condition="ckd", kidney_caps={n: KIDNEY_CAPS[n] for n in chosen})
+
 PRESETS = {
     "high_protein": {"Protein": 0.80, "Carbohydrate, by difference": 0.10},
     "low_carb": {"Carbohydrate, by difference": 0.10},
