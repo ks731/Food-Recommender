@@ -1,7 +1,7 @@
 import pandas as pd
 from pathlib import Path
 from sklearn.metrics.pairwise import cosine_similarity
-from constraints import filter_by_sodium, sodium_cap_per_100g, selected_table, SODIUM_COLUMN
+from constraints import filter_by_sodium, sodium_cap_per_100g, portion_grams, selected_table, SODIUM_COLUMN
 from user_profiles import make_profile, PRESETS
 
 
@@ -43,7 +43,7 @@ def rank_by_similarity(foods, u, top_n=10):
 def sodium_penalty_scores(foods, u, daily_limit, penalty, beta=1/3, grams=100):
     """Returns (similarity, similarity minus penalty * portion sodium / cap) for every food"""
     sims = rank_by_similarity(foods, u, top_n=len(foods))
-    cap = sodium_cap_per_100g(daily_limit, beta, grams)
+    cap = sodium_cap_per_100g(daily_limit, beta, portion_grams(sims.index,grams))
     sodium = selected_table.loc[sims.index, SODIUM_COLUMN]
     adjusted = sims - penalty * sodium / cap if penalty else sims
     return sims, adjusted

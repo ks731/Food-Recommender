@@ -5,7 +5,7 @@ from ranking import recommend, rank_by_similarity, scaled_table, make_profile, P
 from user_profiles import add_low_sodium
 from scipy.spatial.distance import pdist
 from ranking import SODIUM_COLUMN
-from constraints import selected_table
+from constraints import selected_table, sodium_cap_per_100g, portion_grams, load_serving_grams
 from pathlib import Path
 
 here = Path(__file__).resolve()
@@ -52,7 +52,7 @@ def violation_rate(result, daily_limit, beta=1/3, grams=100):
     """Returns the fraction of recommended foods whose sodium in a `grams` portion is over the cap"""
     if len(result) == 0:
         return np.nan
-    cap = daily_limit * beta * 100 / grams
+    cap = sodium_cap_per_100g(daily_limit, beta, portion_grams(result.index, grams))
     return (result[SODIUM_COLUMN] > cap).mean()
 
 def fidelity(result):
@@ -87,8 +87,8 @@ def evaluate_profile(name, profile, top_n=10,labels=None):
         "tier": limit,
         "n_hard": len(hard),
         "clusters_used": hard["cluster"].nunique(),
-        "vr_hard": violation_rate(hard, limit),
-        "vr_free": violation_rate(free, limit),
+        "vr_hard": violation_rate(hard, limit, grams=profile.get("grams", 100)),
+        "vr_free": violation_rate(free, limit, grams=profile.get("grams", 100)),
         "sodium_hard": hard[SODIUM_COLUMN].mean(),
         "sodium_free": free[SODIUM_COLUMN].mean(),
         "fidelity_hard": fidelity(hard),
@@ -183,6 +183,35 @@ def summarize(results):
     summary["worst_fidelity_change_pct"] = by_tier["fidelity_change_pct"].min()
     return summary
 
+def compare_serving(profiles, serving_grams, top_n=10):
+    """Runs every profile twice: filtered per 100 g (the old way) and per typical serving.
+    Both lists are checked against the cap per serving, so we see what the old filter let through"""
+    rows = []
+    for name, profile in profiles:
+        limit = profile["sodium_limit"]
+        per_100g = recommend(dict(profile, grams=100), top_n)
+        per_serving = recommend(dict(profile, grams=serving_grams), top_n)
+        rows.append({
+            "profile": name,
+            "tier": limit,
+            "n_per_serving": len(per_serving),
+            "vr_100g_per_serving": violation_rate(per_100g, limit, grams=serving_grams),
+            "vr_serving_per_serving": violation_rate(per_serving, limit, grams=serving_grams),
+            "fidelity_100g": fidelity(per_100g),
+            "fidelity_serving": fidelity(per_serving),
+            "jaccard": jaccard(per_100g, per_serving),
+            "clusters_used": per_serving["cluster"].nunique(),
+        })
+    return pd.DataFrame(rows).set_index("profile")
+
+def summarize_serving(results):
+    """Averages the per-serving comparison per tier and counts the profiles that changed"""
+    by_tier = results.groupby("tier")
+    summary = by_tier.mean(numeric_only=True)
+    summary["profiles"] = by_tier.size()
+    summary["profiles_100g_violating"] = by_tier["vr_100g_per_serving"].apply(lambda s: (s > 0).sum())
+    summary["profiles_changed"] = by_tier["jaccard"].apply(lambda s: (s < 1).sum())
+    return summary
 
 if __name__ == "__main__":
     RESULTS_DIR.mkdir(exist_ok=True)
@@ -224,3 +253,11 @@ if __name__ == "__main__":
     salty_low_summary = summarize_low_sodium(salty_low)
     salty_low_summary.to_csv(RESULTS_DIR / "salty_low_sodium_pref_summary.csv")
     print(salty_low_summary.round(4))
+
+    # Per-serving filter: compare against the per-100 g filter on the same 200 profiles
+    serving = load_serving_grams()
+    serving_results = compare_serving(make_profiles(), serving)
+    serving_results.to_csv(RESULTS_DIR / "serving_comparison_results.csv")
+    serving_summary = summarize_serving(serving_results)
+    serving_summary.to_csv(RESULTS_DIR / "serving_comparison_summary.csv")
+    print(serving_summary.round(4).T)

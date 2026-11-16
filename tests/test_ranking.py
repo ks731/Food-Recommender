@@ -115,3 +115,22 @@ def test_default_profile_portion_matches_old_behavior():
     profile = make_profile(scaled_table, PRESETS["low_carb"], 1500)
     no_grams = {k: v for k, v in profile.items() if k != "grams"}
     assert recommend(profile, 10).equals(recommend(no_grams, 10))
+
+@pytest.mark.parametrize("preset", list(PRESETS))
+@pytest.mark.parametrize("daily_limit", [1500, 2300])
+def test_per_serving_recommendations_stay_under_meal_cap(preset, daily_limit):
+    from constraints import load_serving_grams
+    serving = load_serving_grams()
+    profile = make_profile(scaled_table, PRESETS[preset], daily_limit, grams=serving)
+    result = recommend(profile, 10)
+    assert len(result) == 10
+    grams = serving.reindex(result.index).fillna(100)
+    assert (result[SODIUM_COLUMN] * grams / 100 <= daily_limit / 3 + 1e-9).all()
+
+
+def test_soft_penalty_works_with_per_serving_grams():
+    from constraints import load_serving_grams
+    profile = make_profile(scaled_table, PRESETS["high_protein"], 1500, grams=load_serving_grams())
+    result = recommend(profile, 10, hard=False, sodium_penalty=0.1)
+    assert len(result) == 10
+    assert result["scores"].notna().all()
